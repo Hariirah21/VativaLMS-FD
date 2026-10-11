@@ -55,6 +55,8 @@ export class PackageManagement implements OnInit {
   protected readonly loadError = signal('');
   protected readonly search = signal('');
   protected readonly statusFilter = signal<'All' | 'Active' | 'Inactive'>('All');
+  protected readonly statusFilterOpen = signal(false);
+  protected readonly statusFilterOptions = ['All', 'Active', 'Inactive'] as const;
   protected readonly totalElements = signal(0);
   protected readonly page = signal(0);
   protected readonly pageSize = 20;
@@ -167,6 +169,22 @@ export class PackageManagement implements OnInit {
     this.statusFilter.set(value);
     this.page.set(0);
     this.loadPackages();
+  }
+
+  protected toggleStatusFilter(event: MouseEvent): void {
+    event.stopPropagation();
+    this.closeActionMenu();
+    this.statusFilterOpen.update((open) => !open);
+  }
+
+  protected selectStatusFilter(value: 'All' | 'Active' | 'Inactive', event: MouseEvent): void {
+    event.stopPropagation();
+    this.onFilter(value);
+    this.statusFilterOpen.set(false);
+  }
+
+  protected closeStatusFilter(): void {
+    this.statusFilterOpen.set(false);
   }
  
   /**

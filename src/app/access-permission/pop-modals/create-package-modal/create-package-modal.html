@@ -14,9 +14,12 @@
       }
       <div class="grid grid-cols-[1.3fr_1fr] gap-5">
         <div class="relative">
-          <input formControlName="name" minlength="3" maxlength="100" placeholder="Package Name*"
+          <input formControlName="name" minlength="3" maxlength="100" placeholder="" aria-label="Package Name (required)" required
                  [attr.aria-invalid]="form.controls.name.touched && form.controls.name.invalid"
                  class="h-12 w-full rounded-lg border-0 bg-[#f6f6f6] px-4 text-xs outline-none placeholder:text-[#555] 2xl:h-[62px] 2xl:rounded-xl 2xl:px-5 2xl:text-sm" />
+          @if (!form.controls.name.value) {
+            <span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-xs text-[#555] 2xl:left-5 2xl:text-sm">Package Name<span class="text-red-600">*</span></span>
+          }
           @if (form.controls.name.touched && form.controls.name.hasError('required')) {
             <p class="absolute left-1 top-full mt-0.5 text-[9px] text-red-600">Package Name is required</p>
           } @else if (form.controls.name.touched && (form.controls.name.hasError('minlength') || form.controls.name.hasError('maxlength'))) {
@@ -26,12 +29,45 @@
           }
         </div>
         <div class="relative">
-          <select formControlName="availablePackage" aria-label="Available Package"
-                  [attr.aria-invalid]="form.controls.availablePackage.touched && form.controls.availablePackage.invalid"
-                  class="h-12 w-full rounded-lg border-0 bg-[#f6f6f6] px-4 text-xs outline-none 2xl:h-[62px] 2xl:rounded-xl 2xl:px-5 2xl:text-sm">
-            <option value="" disabled>Available Package*</option>
-            @for (option of availablePackageOptions; track option) { <option [value]="option">{{ option }}</option> }
-          </select>
+          <button
+            type="button"
+            (click)="toggleAvailablePackageDropdown()"
+            [attr.aria-expanded]="availablePackageDropdownOpen"
+            [attr.aria-invalid]="form.controls.availablePackage.touched && form.controls.availablePackage.invalid"
+            aria-haspopup="listbox"
+            aria-label="Available Package"
+            class="flex h-12 w-full cursor-pointer items-center justify-between rounded-lg border-0 bg-[#f4f4f4] px-4 text-left text-xs outline-none focus-visible:ring-2 focus-visible:ring-[#61b7c5] 2xl:h-[62px] 2xl:rounded-xl 2xl:px-5 2xl:text-sm"
+          >
+            <span [class.text-[#9a9a9a]]="!form.controls.availablePackage.value">
+              @if (form.controls.availablePackage.value) {
+                {{ form.controls.availablePackage.value }}
+              } @else {
+                Available Package<span class="text-red-600">*</span>
+              }
+            </span>
+            <svg viewBox="0 0 24 24" fill="none" class="h-4 w-4 shrink-0 text-[#8a8a8a] transition-transform"
+                 [class.rotate-180]="availablePackageDropdownOpen" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </button>
+          @if (availablePackageDropdownOpen) {
+            <div class="absolute left-0 top-full z-20 mt-1.5 w-full overflow-hidden rounded-xl border border-[#f0f0f0] bg-white shadow-[0_12px_24px_rgba(0,0,0,.14)]">
+              <div class="max-h-[168px] overflow-y-auto py-1" role="listbox" aria-label="Available packages">
+                @for (option of availablePackageOptions; track option) {
+                  <button
+                    type="button"
+                    role="option"
+                    [attr.aria-selected]="form.controls.availablePackage.value === option"
+                    (click)="selectAvailablePackage(option)"
+                    class="flex w-full items-center px-4 py-3 text-left text-sm transition hover:bg-[#f6f6f6]"
+                    [class.bg-[#eaf6fb]]="form.controls.availablePackage.value === option"
+                  >
+                    {{ option }}
+                  </button>
+                }
+              </div>
+            </div>
+          }
           @if (form.controls.availablePackage.touched && form.controls.availablePackage.hasError('required')) {
             <p class="absolute left-1 top-full mt-0.5 text-[9px] text-red-600">Please select an available package.</p>
           }
@@ -48,32 +84,70 @@
       }
 
       <div class="mt-4 space-y-3 2xl:mt-5 2xl:space-y-5">
-        <div>
-          <input formControlName="price" type="number" min="0.01" step="0.01" placeholder="Price*"
+        <div class="relative">
+          <input formControlName="price" type="number" min="0.01" step="0.01" placeholder="" aria-label="Price (required)" required
                  (keydown)="preventNonNumericPriceInput($event)"
                  [attr.aria-invalid]="form.controls.price.touched && form.controls.price.invalid"
                  class="h-12 w-full rounded-lg border-0 bg-[#f6f6f6] px-4 text-xs outline-none placeholder:text-[#555] 2xl:h-[62px] 2xl:rounded-xl 2xl:px-5 2xl:text-sm" />
+          @if (form.controls.price.value == null) {
+            <span class="pointer-events-none absolute left-4 top-6 text-xs text-[#555] 2xl:left-5 2xl:top-[30px] 2xl:text-sm">Price<span class="text-red-600">*</span></span>
+          }
           @if (form.controls.price.touched && (form.controls.price.hasError('required') || form.controls.price.hasError('min'))) {
             <p class="mt-1 text-[9px] text-red-600">Price is required. Price must be greater than zero.</p>
           }
         </div>
-        <div>
-          <select formControlName="billingCycle" aria-label="Billing cycle"
-                  [attr.aria-invalid]="form.controls.billingCycle.touched && form.controls.billingCycle.invalid"
-                  class="h-12 w-full rounded-lg border-0 bg-[#f6f6f6] px-4 text-xs outline-none 2xl:h-[62px] 2xl:rounded-xl 2xl:px-5 2xl:text-sm">
-            <option value="" disabled>Billing cycle*</option>
-            <option value="Monthly">Monthly</option>
-            <option value="Yearly">Yearly</option>
-          </select>
+        <div class="relative">
+          <button
+            type="button"
+            (click)="toggleBillingCycleDropdown()"
+            [attr.aria-expanded]="billingCycleDropdownOpen"
+            [attr.aria-invalid]="form.controls.billingCycle.touched && form.controls.billingCycle.invalid"
+            aria-haspopup="listbox"
+            aria-label="Billing cycle"
+            class="flex h-12 w-full cursor-pointer items-center justify-between rounded-lg border-0 bg-[#f4f4f4] px-4 text-left text-xs outline-none focus-visible:ring-2 focus-visible:ring-[#61b7c5] 2xl:h-[62px] 2xl:rounded-xl 2xl:px-5 2xl:text-sm"
+          >
+            <span [class.text-[#9a9a9a]]="!form.controls.billingCycle.value">
+              @if (form.controls.billingCycle.value) {
+                {{ form.controls.billingCycle.value }}
+              } @else {
+                Billing cycle<span class="text-red-600">*</span>
+              }
+            </span>
+            <svg viewBox="0 0 24 24" fill="none" class="h-4 w-4 shrink-0 text-[#8a8a8a] transition-transform"
+                 [class.rotate-180]="billingCycleDropdownOpen" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </button>
+          @if (billingCycleDropdownOpen) {
+            <div class="absolute left-0 top-full z-20 mt-1.5 w-full overflow-hidden rounded-xl border border-[#f0f0f0] bg-white shadow-[0_12px_24px_rgba(0,0,0,.14)]">
+              <div class="py-1" role="listbox" aria-label="Billing cycle options">
+                @for (cycle of billingCycleOptions; track cycle) {
+                  <button
+                    type="button"
+                    role="option"
+                    [attr.aria-selected]="form.controls.billingCycle.value === cycle"
+                    (click)="selectBillingCycle(cycle)"
+                    class="flex w-full items-center px-4 py-3 text-left text-sm transition hover:bg-[#f6f6f6]"
+                    [class.bg-[#eaf6fb]]="form.controls.billingCycle.value === cycle"
+                  >
+                    {{ cycle }}
+                  </button>
+                }
+              </div>
+            </div>
+          }
           @if (form.controls.billingCycle.touched && form.controls.billingCycle.hasError('required')) {
             <p class="mt-1 text-[9px] text-red-600">Please select a billing cycle.</p>
           }
         </div>
-        <div>
-          <input formControlName="userLimit" type="number" min="1" step="1" placeholder="User limits*"
+        <div class="relative">
+          <input formControlName="userLimit" type="number" min="1" step="1" placeholder="" aria-label="User limits (required)" required
                  (keydown)="preventNonIntegerInput($event)"
                  [attr.aria-invalid]="form.controls.userLimit.touched && form.controls.userLimit.invalid"
                  class="h-12 w-full rounded-lg border-0 bg-[#f6f6f6] px-4 text-xs outline-none placeholder:text-[#555] 2xl:h-[62px] 2xl:rounded-xl 2xl:px-5 2xl:text-sm" />
+          @if (form.controls.userLimit.value == null) {
+            <span class="pointer-events-none absolute left-4 top-6 text-xs text-[#555] 2xl:left-5 2xl:top-[30px] 2xl:text-sm">User limits<span class="text-red-600">*</span></span>
+          }
           @if (form.controls.userLimit.touched && form.controls.userLimit.hasError('required')) {
             <p class="mt-1 text-[9px] text-red-600">User Limit is required.</p>
           } @else if (form.controls.userLimit.touched && form.controls.userLimit.hasError('min')) {

@@ -36,6 +36,7 @@ export class AssignPackageModal implements OnChanges {
   protected emailSearchQuery = '';
   protected selectedAdminId: number | null = null;
   protected selectedPackageId: number | null = null;
+  protected packageDropdownOpen = false;
 
   ngOnChanges(changes: SimpleChanges): void {
     // Reset/reseed selections whenever the modal is (re)opened with a
@@ -50,6 +51,7 @@ export class AssignPackageModal implements OnChanges {
       this.selectedPackageId = this.admin?.packageId ?? null;
       this.emailSearchQuery = '';
       this.emailDropdownOpen = false;
+      this.packageDropdownOpen = false;
     }
   }
 
@@ -67,6 +69,10 @@ export class AssignPackageModal implements OnChanges {
     return this.admins.find((a) => a.id === this.selectedAdminId)?.email ?? null;
   }
 
+  protected get selectedPackage(): PackageRecord | null {
+    return this.packages.find((item) => item.id === this.selectedPackageId) ?? null;
+  }
+
   protected get canSubmit(): boolean {
     return !this.submitting && !this.loading && this.selectedPackageId != null && !!this.resolvedEmail;
   }
@@ -74,12 +80,29 @@ export class AssignPackageModal implements OnChanges {
   protected toggleEmailDropdown(): void {
     if (this.admin) return; // row mode: email is fixed, nothing to open
     this.emailDropdownOpen = !this.emailDropdownOpen;
-    if (this.emailDropdownOpen) this.emailSearchQuery = '';
+    if (this.emailDropdownOpen) {
+      this.emailSearchQuery = '';
+      this.packageDropdownOpen = false;
+    }
   }
 
   /** Clicking anywhere else inside the modal closes the combobox without dismissing the whole dialog. */
   protected closeEmailDropdown(): void {
     this.emailDropdownOpen = false;
+  }
+
+  protected togglePackageDropdown(): void {
+    this.packageDropdownOpen = !this.packageDropdownOpen;
+    if (this.packageDropdownOpen) this.emailDropdownOpen = false;
+  }
+
+  protected closePackageDropdown(): void {
+    this.packageDropdownOpen = false;
+  }
+
+  protected selectPackage(packageId: number): void {
+    this.selectedPackageId = packageId;
+    this.packageDropdownOpen = false;
   }
 
   protected selectAdmin(a: AdminSummary): void {
@@ -90,6 +113,7 @@ export class AssignPackageModal implements OnChanges {
     // (packageId null/undefined), the package field stays empty as usual.
     this.selectedPackageId = a.packageId ?? null;
     this.emailDropdownOpen = false;
+    this.packageDropdownOpen = false;
     this.emailSearchQuery = '';
   }
 

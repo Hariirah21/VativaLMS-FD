@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { buildPackageDetailsForm, wordCountOf } from '../forms/package-form';
-import { AVAILABLE_PACKAGE_OPTIONS, PackagePayload, PackageRecord } from '../../../services/package.service';
+import { AVAILABLE_PACKAGE_OPTIONS, AvailablePackage, PackagePayload, PackageRecord } from '../../../services/package.service';
 
 
 @Component({
@@ -29,6 +29,9 @@ export class CreatePackageModal implements OnChanges {
   @Output() readonly next = new EventEmitter<PackagePayload>();
 
   protected readonly availablePackageOptions = AVAILABLE_PACKAGE_OPTIONS;
+  protected readonly billingCycleOptions = ['Monthly', 'Yearly'] as const;
+  protected availablePackageDropdownOpen = false;
+  protected billingCycleDropdownOpen = false;
   protected readonly form = buildPackageDetailsForm(
     () => this.existingPackages,
     () => this.packageToEdit?.id ?? null,
@@ -36,6 +39,7 @@ export class CreatePackageModal implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (!changes['packageToEdit']) return;
+    this.closeDropdowns();
     this.form.reset();
     const item = this.packageToEdit;
     if (!item) return;
@@ -53,6 +57,33 @@ export class CreatePackageModal implements OnChanges {
 
   protected descriptionWordCount(): number {
     return wordCountOf(this.form.controls.description.value);
+  }
+
+  protected toggleAvailablePackageDropdown(): void {
+    this.availablePackageDropdownOpen = !this.availablePackageDropdownOpen;
+    if (this.availablePackageDropdownOpen) this.billingCycleDropdownOpen = false;
+  }
+
+  protected toggleBillingCycleDropdown(): void {
+    this.billingCycleDropdownOpen = !this.billingCycleDropdownOpen;
+    if (this.billingCycleDropdownOpen) this.availablePackageDropdownOpen = false;
+  }
+
+  protected selectAvailablePackage(option: AvailablePackage): void {
+    this.form.controls.availablePackage.setValue(option);
+    this.form.controls.availablePackage.markAsTouched();
+    this.closeDropdowns();
+  }
+
+  protected selectBillingCycle(cycle: 'Monthly' | 'Yearly'): void {
+    this.form.controls.billingCycle.setValue(cycle);
+    this.form.controls.billingCycle.markAsTouched();
+    this.closeDropdowns();
+  }
+
+  private closeDropdowns(): void {
+    this.availablePackageDropdownOpen = false;
+    this.billingCycleDropdownOpen = false;
   }
 
   protected preventNonNumericPriceInput(event: KeyboardEvent): void {
