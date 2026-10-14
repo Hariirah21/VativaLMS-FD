@@ -24,6 +24,9 @@ import {
 import { MultimediaUpload } from '../pop-modals/multimedia-upload/multimedia-upload';
 import { MultimediaManagementService } from '../../services/multimedia-management.service';
 import { MultimediaResource, MultimediaSaveResult } from '../multimedia.model';
+import { QuestionBank } from './question-bank/question-bank';
+import { QuestionBankRecord, QuestionBankSavedEvent } from './question-bank/question-bank.model';
+import { QuestionBankStore } from './question-bank/question-bank.store';
 
 // Must match SectionService.validateAndNormalizeName on the backend.
 const MIN_CHARS = 3;
@@ -31,7 +34,7 @@ const MAX_CHARS = 100;
 const GENERIC_ERROR =
   'Unable to complete the requested action due to a server error. Please try again later.';
 
-/* ---- Activities: Multimedia is live; Ebook / Question Bank come in the next phase ---- */
+/* ---- Activities available within an organized course section ---- */
 export type ActivityKind = 'Ebook' | 'Multimedia' | 'Question Bank';
 export interface SectionActivity {
   id: number;
@@ -41,8 +44,7 @@ export interface SectionActivity {
 
 @Component({
   selector: 'app-organize-sections',
-  // CHANGED: added MultimediaUpload
-  imports: [MultimediaUpload],
+  imports: [MultimediaUpload, QuestionBank],
   templateUrl: './organize-sections.html',
   styleUrl: './organize-sections.css',
 })
@@ -58,6 +60,7 @@ export class OrganizeSections implements OnInit, OnDestroy {
   private readonly sectionService = inject(SectionManagementService);
   // NEW
   private readonly multimediaService = inject(MultimediaManagementService);
+  private readonly questionBankStore = inject(QuestionBankStore);
   private readonly destroyRef = inject(DestroyRef);
 
   // ---------- page state ----------
@@ -107,22 +110,41 @@ export class OrganizeSections implements OnInit, OnDestroy {
 
   // ---------- multimedia (NEW) ----------
   /** Resources already fetched, keyed by section id. */
-  private readonly resourcesBySection = signal<ReadonlyMap<number, MultimediaResource[]>>(new Map());
+  private readonly resourcesBySection = signal<ReadonlyMap<number, MultimediaResource[]>>(
+    new Map(),
+  );
+  /** Locally saved Question Banks, keyed by the owning course section id. */
+  private readonly questionBanksBySection = signal<ReadonlyMap<number, QuestionBankRecord[]>>(
+    new Map(),
+  );
   /** Same data shaped for the activity rows in the template. */
   private readonly activitiesBySection = computed(() => {
     const map = new Map<number, SectionActivity[]>();
     for (const [sectionId, list] of this.resourcesBySection()) {
       map.set(
         sectionId,
-        list.map(r => ({ id: r.id, kind: 'Multimedia' as const, title: r.name })),
+        list.map((r) => ({ id: r.id, kind: 'Multimedia' as const, title: r.name })),
       );
+    }
+    for (const [sectionId, list] of this.questionBanksBySection()) {
+      const multimediaActivities = map.get(sectionId) ?? [];
+      map.set(sectionId, [
+        ...multimediaActivities,
+        ...list.map((bank) => ({ id: bank.id, kind: 'Question Bank' as const, title: bank.name })),
+      ]);
     }
     return map;
   });
   /** Open upload / edit dialog: null = closed, resource = null means "new upload". */
-  readonly resourceDialog = signal<{ sectionId: number; resource: MultimediaResource | null } | null>(
-    null,
-  );
+  readonly resourceDialog = signal<{
+    sectionId: number;
+    resource: MultimediaResource | null;
+  } | null>(null);
+  readonly questionBankDialog = signal<{
+    sectionId: number;
+    sectionName: string;
+    bankId: number | null;
+  } | null>(null);
 
   private pendingRetry: (() => void) | null = null;
   private toastTimer: ReturnType<typeof setTimeout> | undefined;
@@ -162,7 +184,7 @@ export class OrganizeSections implements OnInit, OnDestroy {
   }
 
   toggleOutlinePreview(): void {
-    this.outlinePreviewVisible.update(v => !v);
+    this.outlinePreviewVisible.update((v) => !v);
   }
 
   // =====================================================================
@@ -198,7 +220,7 @@ export class OrganizeSections implements OnInit, OnDestroy {
       .getSections(this.course.id)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: list => {
+        next: (list) => {
           this.sections.set(this.sortByOrder(list));
           this.sectionsLoading.set(false);
         },
@@ -295,9 +317,9 @@ export class OrganizeSections implements OnInit, OnDestroy {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
-        next: saved => {
+        next: (saved) => {
           if (editing) {
-            this.sections.update(list => list.map(s => (s.id === saved.id ? saved : s)));
+            this.sections.update((list) => list.map((s) => (s.id === saved.id ? saved : s)));
             this.resetSectionDialog(); // NOT closeSectionDialog(): sectionSaving is still true here
             this.showToast('Section updated successfully.');
             return;
@@ -310,9 +332,9 @@ export class OrganizeSections implements OnInit, OnDestroy {
 
           // CHANGED: if it was added from a "+" between sections, move it right after that section
           // using the existing reorder API (no backend change needed).
-          const afterIndex = afterId === null ? -1 : list.findIndex(s => s.id === afterId);
+          const afterIndex = afterId === null ? -1 : list.findIndex((s) => s.id === afterId);
           if (afterIndex >= 0 && afterIndex < list.length - 2) {
-            const reordered = list.filter(s => s.id !== saved.id);
+            const reordered = list.filter((s) => s.id !== saved.id);
             reordered.splice(afterIndex + 1, 0, saved);
             this.persistOrder(reordered, 'Section created successfully.');
           } else {
@@ -331,7 +353,7 @@ export class OrganizeSections implements OnInit, OnDestroy {
   // =====================================================================
 
   toggleSection(sectionId: number): void {
-    this.expandedSectionId.update(current => (current === sectionId ? null : sectionId));
+    this.expandedSectionId.update((current) => (current === sectionId ? null : sectionId));
     // CHANGED: fetch this section's multimedia when it is opened
     if (this.expandedSectionId() === sectionId) this.loadResources(sectionId);
   }
@@ -348,7 +370,7 @@ export class OrganizeSections implements OnInit, OnDestroy {
         this.requestRemoveSection(section);
         break;
       case 'reorder':
-        this.reorderingSectionId.update(current => (current === section.id ? null : section.id));
+        this.reorderingSectionId.update((current) => (current === section.id ? null : section.id));
         break;
       case 'preview':
         this.loadResources(section.id); // CHANGED: make sure the preview lists its multimedia
@@ -406,11 +428,11 @@ export class OrganizeSections implements OnInit, OnDestroy {
       .subscribe({
         next: () => {
           // The backend renumbers the remaining sections 1..n; mirror that locally.
-          this.sections.update(list =>
-            list.filter(s => s.id !== target.id).map((s, i) => ({ ...s, sectionOrder: i + 1 })),
+          this.sections.update((list) =>
+            list.filter((s) => s.id !== target.id).map((s, i) => ({ ...s, sectionOrder: i + 1 })),
           );
           // CHANGED: drop the deleted section's cached multimedia
-          this.resourcesBySection.update(map => {
+          this.resourcesBySection.update((map) => {
             const next = new Map(map);
             next.delete(target.id);
             return next;
@@ -430,7 +452,7 @@ export class OrganizeSections implements OnInit, OnDestroy {
 
   canMoveSection(sectionId: number, direction: -1 | 1): boolean {
     const list = this.sections();
-    const index = list.findIndex(s => s.id === sectionId);
+    const index = list.findIndex((s) => s.id === sectionId);
     const target = index + direction;
     return index >= 0 && target >= 0 && target < list.length;
   }
@@ -438,7 +460,7 @@ export class OrganizeSections implements OnInit, OnDestroy {
   moveSection(sectionId: number, direction: -1 | 1): void {
     if (!this.canMoveSection(sectionId, direction)) return;
     const next = [...this.sections()];
-    const index = next.findIndex(s => s.id === sectionId);
+    const index = next.findIndex((s) => s.id === sectionId);
     [next[index], next[index + direction]] = [next[index + direction], next[index]];
     this.persistOrder(next);
   }
@@ -475,8 +497,8 @@ export class OrganizeSections implements OnInit, OnDestroy {
 
   private moveSectionTo(sourceId: number, targetId: number): void {
     const next = [...this.sections()];
-    const from = next.findIndex(s => s.id === sourceId);
-    const to = next.findIndex(s => s.id === targetId);
+    const from = next.findIndex((s) => s.id === sourceId);
+    const to = next.findIndex((s) => s.id === targetId);
     if (from < 0 || to < 0) return;
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
@@ -498,7 +520,7 @@ export class OrganizeSections implements OnInit, OnDestroy {
     this.listSaving.set(true);
     this.sectionSaveMessage.set('Saving order…');
 
-    const items = renumbered.map(s => ({ sectionId: s.id, newOrder: s.sectionOrder }));
+    const items = renumbered.map((s) => ({ sectionId: s.id, newOrder: s.sectionOrder }));
 
     this.sectionService
       .reorderSections(this.course.id, items)
@@ -510,7 +532,7 @@ export class OrganizeSections implements OnInit, OnDestroy {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
-        next: updated => {
+        next: (updated) => {
           this.sections.set(this.sortByOrder(updated));
           this.showToast(successMessage);
         },
@@ -523,8 +545,7 @@ export class OrganizeSections implements OnInit, OnDestroy {
 
   // =====================================================================
   // ACTIVITIES
-  // Multimedia is implemented below. Ebook / Question Bank / activity drag & drop
-  // are still placeholders so the template compiles.
+  // Multimedia and Question Bank are implemented below. Ebook remains a placeholder.
   // =====================================================================
 
   activitiesForSection(sectionId: number): SectionActivity[] {
@@ -534,12 +555,16 @@ export class OrganizeSections implements OnInit, OnDestroy {
   /** Add Activity -> Multimedia opens the upload dialog; the pencil icon on a row opens it in edit mode. */
   openResourceDialog(kind: ActivityKind, sectionId: number, activity?: SectionActivity): void {
     this.activityMenuSectionId.set(null);
+    if (kind === 'Question Bank') {
+      this.openQuestionBank(sectionId, activity?.id ?? null);
+      return;
+    }
     if (kind !== 'Multimedia') {
       this.showToast(`${kind} upload will be available soon.`);
       return;
     }
     const resource = activity
-      ? ((this.resourcesBySection().get(sectionId) ?? []).find(r => r.id === activity.id) ?? null)
+      ? ((this.resourcesBySection().get(sectionId) ?? []).find((r) => r.id === activity.id) ?? null)
       : null;
     this.resourceDialog.set({ sectionId, resource });
   }
@@ -550,27 +575,34 @@ export class OrganizeSections implements OnInit, OnDestroy {
 
   /** <app-multimedia-upload> finished a successful upload / edit. */
   onResourceSaved({ resource, created }: MultimediaSaveResult): void {
-    this.resourcesBySection.update(map => {
+    this.resourcesBySection.update((map) => {
       const list = map.get(resource.sectionId) ?? [];
       const next = created
         ? [...list, resource]
-        : list.map(r => (r.id === resource.id ? resource : r));
+        : list.map((r) => (r.id === resource.id ? resource : r));
       return new Map(map).set(resource.sectionId, next);
     });
     this.resourceDialog.set(null);
     this.showToast(created ? 'Resource uploaded successfully.' : 'Resource updated successfully.');
   }
 
-  removeActivity(sectionId: number, activityId: number): void {
+  removeActivity(sectionId: number, activity: SectionActivity): void {
+    if (activity.kind === 'Question Bank') {
+      this.questionBankStore.remove(activity.id);
+      this.loadQuestionBanks(sectionId);
+      this.showToast('Question Bank deleted successfully.');
+      return;
+    }
+
     this.multimediaService
-      .deleteResource(this.course.id, sectionId, activityId)
+      .deleteResource(this.course.id, sectionId, activity.id)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
-          this.resourcesBySection.update(map =>
+          this.resourcesBySection.update((map) =>
             new Map(map).set(
               sectionId,
-              (map.get(sectionId) ?? []).filter(r => r.id !== activityId),
+              (map.get(sectionId) ?? []).filter((r) => r.id !== activity.id),
             ),
           );
           this.showToast('Resource deleted successfully.');
@@ -580,18 +612,45 @@ export class OrganizeSections implements OnInit, OnDestroy {
   }
 
   private loadResources(sectionId: number): void {
+    this.loadQuestionBanks(sectionId);
     this.multimediaService
       .getResources(this.course.id, sectionId)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: list => this.resourcesBySection.update(map => new Map(map).set(sectionId, list)),
+        next: (list) => this.resourcesBySection.update((map) => new Map(map).set(sectionId, list)),
         error: (err: unknown) => this.showToast(this.messageOf(err)),
       });
   }
 
-  openQuestionBankList(_sectionId: number): void {
+  openQuestionBankList(sectionId: number): void {
     this.activityMenuSectionId.set(null);
-    this.showToast('Question Bank will be available soon.');
+    this.openQuestionBank(sectionId, null);
+  }
+
+  closeQuestionBank(): void {
+    this.questionBankDialog.set(null);
+  }
+
+  onQuestionBankSaved({ record, created }: QuestionBankSavedEvent): void {
+    this.loadQuestionBanks(record.courseSectionId);
+    this.questionBankDialog.set(null);
+    this.showToast(
+      created ? 'Question Bank created successfully.' : 'Question Bank updated successfully.',
+    );
+  }
+
+  private openQuestionBank(sectionId: number, bankId: number | null): void {
+    const section = this.sections().find((item) => item.id === sectionId);
+    if (!section) {
+      this.showToast('Unable to open Question Bank for this section.');
+      return;
+    }
+    this.questionBankDialog.set({ sectionId, sectionName: section.name, bankId });
+  }
+
+  private loadQuestionBanks(sectionId: number): void {
+    const banks = this.questionBankStore.listForSection(this.course.id, sectionId);
+    this.questionBanksBySection.update((map) => new Map(map).set(sectionId, banks));
   }
 
   startActivityDrag(event: DragEvent, sectionId: number, index: number): void {
@@ -648,7 +707,7 @@ export class OrganizeSections implements OnInit, OnDestroy {
     if (from < 0 || from >= next.length || from === to) return;
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
-    this.resourcesBySection.update(map => new Map(map).set(sectionId, next));
+    this.resourcesBySection.update((map) => new Map(map).set(sectionId, next));
   }
 
   // =====================================================================
@@ -661,7 +720,7 @@ export class OrganizeSections implements OnInit, OnDestroy {
     if (name.length < MIN_CHARS) return `Section Name must be at least ${MIN_CHARS} characters.`;
     if (name.length > MAX_CHARS) return `Section Name must not exceed ${MAX_CHARS} characters.`;
     const duplicate = this.sections().some(
-      s => s.id !== excludeId && s.name.trim().toLowerCase() === name.toLowerCase(),
+      (s) => s.id !== excludeId && s.name.trim().toLowerCase() === name.toLowerCase(),
     );
     return duplicate ? 'A section with the same name already exists in this course.' : null;
   }
