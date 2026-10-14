@@ -103,7 +103,7 @@ export class SectionManagementService {
   private handleError = (error: HttpErrorResponse): Observable<never> => {
     if (error.status === 0) {
       return throwError(
-        () => new SectionApiError('Unable to reach the server. Please check your connection and try again.', 0),
+        () => new SectionApiError('Please check your connection and try again.', 0),
       );
     }
     const body = error.error as ApiResponse<Record<string, string> | null> | undefined;

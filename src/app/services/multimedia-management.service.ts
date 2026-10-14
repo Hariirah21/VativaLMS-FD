@@ -166,7 +166,7 @@ export class MultimediaManagementService {
   private toApiError(error: HttpErrorResponse): MultimediaApiError {
     switch (error.status) {
       case 0:
-        return new MultimediaApiError('Unable to reach the server. Please check your connection and try again.', 0);
+        return new MultimediaApiError('Please check your connection and try again.', 0);
       case 401:
         return new MultimediaApiError('Your session has expired. Please log in again.', 401);
       case 413:

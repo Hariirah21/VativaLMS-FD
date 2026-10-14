@@ -9,6 +9,7 @@ import { CourseManagementService } from '../../services/course-management.servic
 import { EnrollmentService } from '../../services/enrollment.service';
 import { AuthService } from '../../services/auth';
 
+
 @Component({
   selector: 'app-enrolled-course-list',
   imports: [EnrollUser],
@@ -153,18 +154,13 @@ export class EnrolledCourseList {
   }
 
   // ---------- More Actions (⋮) -> Unenroll ----------
-  /**
-   * The menu always acts on the current selection. If the user opens ⋮ on a row that is not
-   * ticked, that row becomes the selection, so the menu label and the action never disagree.
-   */
+  /** The menu acts on the current selection and can only be opened for a selected row. */
   toggleActionMenu(event: Event, userId: number): void {
     event.stopPropagation();
+    if (!this.selectedIds().has(userId) || this.unenrolling()) return;
     if (this.openActionFor() === userId) {
       this.openActionFor.set(null);
       return;
-    }
-    if (!this.selectedIds().has(userId)) {
-      this.selectedIds.set(new Set([userId]));
     }
     this.openActionFor.set(userId);
   }
@@ -186,7 +182,7 @@ export class EnrolledCourseList {
         this.unenrolling.set(false);
         this.openActionFor.set(null);
         this.selectedIds.set(new Set());
-        this.flash('User(s) unenrolled successfully.');
+        this.flash('Users Unenrolled Successfully.');
         this.loadEnrollments();
       },
       error: (err: unknown) => {
@@ -242,7 +238,7 @@ export class EnrolledCourseList {
       next: () => {
         this.enrolling.set(false);
         this.enrollPopupOpen.set(false);
-        this.flash('User(s) enrolled successfully.');
+        this.flash('Users Enrolled Successfully.');
         this.loadEnrollments();
         queueMicrotask(() => this.enrollButton()?.nativeElement.focus());
       },
@@ -270,16 +266,62 @@ export class EnrolledCourseList {
     return value === null || value === undefined ? '—' : `${Math.round(value)}%`;
   }
 
-  statusLabel(status: EnrollmentStatus): string {
-    switch (status) {
-      case 'IN_PROGRESS':
-        return 'In Progress';
-      case 'COMPLETED':
-        return 'Completed';
-      default:
-        return 'Not Started';
-    }
+ 
+
+readonly openStatusDropdownFor = signal<string | number | null>(null);
+
+toggleStatusDropdown(id: string | number): void {
+  this.openStatusDropdownFor.update(
+    current => current === id ? null : id
+  );
+}
+
+selectEnrollmentStatus(
+  enrollment: any,
+  status: string
+): void {
+  this.updateEnrollmentStatus(enrollment, status);
+  this.openStatusDropdownFor.set(null);
+}
+
+
+getStatusValue(status: string | null | undefined): string {
+  const normalizedStatus = (status ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, '_');
+
+  switch (normalizedStatus) {
+    case 'NOT_STARTED':
+      return 'NOT_STARTED';
+
+    case 'IN_PROGRESS':
+      return 'IN_PROGRESS';
+
+    case 'COMPLETED':
+      return 'COMPLETED';
+
+    default:
+      return 'NOT_STARTED';
   }
+}
+
+updateEnrollmentStatus(enrollment: any, status: string): void {
+  const validStatuses = [
+    'NOT_STARTED',
+    'IN_PROGRESS',
+    'COMPLETED'
+  ];
+
+  if (!validStatuses.includes(status)) {
+    return;
+  }
+
+  enrollment.status = status;
+}
+
+
+
 
   // ---------- internals ----------
   private resetState(): void {

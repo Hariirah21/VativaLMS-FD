@@ -36,17 +36,33 @@
  
   <main class="relative z-10 px-5 pb-6 pt-2 md:px-[8.5%]">
     <div
-      class="sticky top-16 z-30 -mx-5 flex flex-wrap items-center gap-3 bg-[#f5f5f5] px-5 py-2  md:-mx-[8.5%] md:px-[8.5%]">
-      <!-- <label class="flex h-10 w-44  items-center rounded-full bg-white px-4 text-xs">
-        <select aria-label="Available Roles" [disabled]="!isAdmin()"
-          class="w-full bg-transparent outline-none disabled:cursor-not-allowed disabled:opacity-50" value=""
-          (change)="selectAvailableRole($any($event.target).value)">
-          <option>Available Roles</option>
+      class="sticky top-16 z-30 -mx-5 flex flex-wrap items-center gap-3 bg-[#f5f5f5] px-5 py-2  md:-mx-[8.5%]">
+      <div class="relative z-30 w-44" (click)="$event.stopPropagation()">
+        <button type="button" [disabled]="!isAdmin()"
+          class="relative z-10 flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-[20px] border-0 bg-white px-4 text-xs font-medium text-[#555] outline-none transition hover:shadow-md focus-visible:ring-2 focus-visible:ring-[#62b9c8]/40 disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label="Available Roles" aria-haspopup="menu" [attr.aria-expanded]="availableRoleMenuOpen()"
+          (click)="toggleAvailableRoleMenu()">
+          <span class="max-w-32 truncate">Available Roles</span>
+          <svg viewBox="0 0 24 24" class="h-4 w-4 shrink-0 fill-none stroke-[#666]" stroke-width="2.2" aria-hidden="true">
+            <path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        @if (availableRoleMenuOpen()) {
+        <div
+          class="absolute left-0 top-0 z-0 max-h-72 w-full overflow-y-auto rounded-[28px] bg-white pt-10 text-center shadow-[0_12px_18px_rgba(0,0,0,.16)] ring-1 ring-black/5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          role="menu" aria-label="Available Roles">
           @for (role of activeRoles(); track role.id) {
-          <option [value]="role.id">{{ role.name }}</option>
+          <button type="button" role="menuitem"
+            class="block h-9 w-full border-b border-[#ededed] px-3 text-xs text-[#555] transition last:border-0 hover:bg-[#f6f6f6] focus-visible:bg-[#f6f6f6] focus-visible:outline-none"
+            (click)="selectAvailableRole(role.id)">
+            {{ role.name }}
+          </button>
+          } @empty {
+          <p class="px-3 py-3 text-xs text-neutral-400">No roles available</p>
           }
-        </select>
-      </label> -->
+        </div>
+        }
+      </div>
       <label class="flex h-10 w-40 items-center rounded-full bg-white px-3 text-xs">
         <svg viewBox="0 0 24 24" class="mr-2 h-4 w-4 shrink-0 fill-none stroke-[#777]" stroke-width="1.8">
           <circle cx="11" cy="11" r="7" />
@@ -109,7 +125,7 @@
         }
       </div>
       <button (click)="openInvite()" [disabled]="!isAdmin()"
-        class="ml-auto h-10 cursor-pointer rounded-full border-0 border-transparent bg-white px-7 text-xs text-[#333] transition-all duration-300 ease-out enabled:hover:border-[#7fb9c7] enabled:hover:bg-[#4694A4] enabled:hover:text-[#f4fbfc] enabled:hover:shadow-[0_8px_18px_-2px_rgba(70,160,180,0.65),0_3px_8px_rgba(120,200,215,0.3)] enabled:focus-visible:border-[#7fb9c7] enabled:focus-visible:bg-[#4694A4] enabled:focus-visible:text-[#f4fbfc] enabled:focus-visible:shadow-[0_8px_18px_-2px_rgba(70,160,180,0.65),0_3px_8px_rgba(120,200,215,0.3)] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        class="ml-auto h-10 cursor-pointer rounded-full  border-0 border-transparent bg-white px-7 text-xs text-[#333] transition-all duration-300 ease-out enabled:hover:border-[#7fb9c7] enabled:hover:bg-[#4694A4] enabled:hover:text-[#f4fbfc] enabled:hover:shadow-[0_8px_18px_-2px_rgba(70,160,180,0.65),0_3px_8px_rgba(120,200,215,0.3)] enabled:focus-visible:border-[#7fb9c7] enabled:focus-visible:bg-[#4694A4] enabled:focus-visible:text-[#f4fbfc] enabled:focus-visible:shadow-[0_8px_18px_-2px_rgba(70,160,180,0.65),0_3px_8px_rgba(120,200,215,0.3)] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
         type="button" aria-label="Invite People">
         Invite People
       </button>
@@ -120,7 +136,7 @@
       </button>
     </div>
  
-    <section class="mt-6 -mx-5 overflow-hidden rounded-2xl bg-white md:-mx-[8.5%]">
+    <section class="mt-6  overflow-hidden rounded-2xl bg-white md:-mx-[7%]">
       @if (loading()) {
       <div class="grid min-h-[420px] place-items-center text-sm text-[#888]">
         Loading roles…
@@ -199,7 +215,7 @@
  
       }
     </section>
-    <div class="mt-5 flex min-h-[44px] md:-mx-[8.5%] items-center justify-between gap-3 rounded-full bg-white px-6 py-1">
+    <div class="mt-5 flex min-h-[44px] md:-mx-[7%] items-center justify-between gap-3 rounded-full bg-white px-6 py-1">
  
       <!-- Showing Count -->
       <p class="text-[11px] text-[#555]">

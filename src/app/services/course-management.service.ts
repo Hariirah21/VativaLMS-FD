@@ -98,7 +98,7 @@ export class CourseManagementService {
    */
   private handleError = (error: HttpErrorResponse): Observable<never> => {
     if (error.status === 0) {
-      return throwError(() => new Error('Unable to reach the server. Please check your connection and try again.'));
+      return throwError(() => new Error('Please check your connection and try again.'));
     }
     const body = error.error as ApiResponse<Record<string, string>> | undefined;
     if (body?.data && typeof body.data === 'object') {

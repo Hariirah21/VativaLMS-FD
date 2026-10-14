@@ -130,7 +130,7 @@ export class EnrollmentService {
       return throwError(
         () =>
           new ApiRequestError(
-            'Unable to reach the server. Please check your connection and try again.',
+            'Please check your connection and try again.',
             0,
           ),
       );

@@ -52,6 +52,7 @@ export class RoleManagement implements OnInit {
   readonly loadError = signal<string | null>(null);
  
   readonly query = signal('');
+  readonly availableRoleMenuOpen = signal(false);
   readonly roleFilterOpen = signal(false);
   readonly roleFilterField = signal<RoleFilterField | null>(null);
   readonly roleFilterValue = signal<string | null>(null);
@@ -110,6 +111,9 @@ export class RoleManagement implements OnInit {
     if (this.roleFilterOpen()) {
       this.roleFilterOpen.set(false);
     }
+    if (this.availableRoleMenuOpen()) {
+      this.availableRoleMenuOpen.set(false);
+    }
   }
  
   manageCourses(): void {
@@ -152,9 +156,15 @@ export class RoleManagement implements OnInit {
   }
  
   toggleRoleFilter(): void {
+    this.availableRoleMenuOpen.set(false);
     this.roleFilterOpen.update((open) => !open);
   }
- 
+
+  toggleAvailableRoleMenu(): void {
+    this.roleFilterOpen.set(false);
+    this.availableRoleMenuOpen.update((open) => !open);
+  }
+
   selectRoleFilterField(field: RoleFilterField): void {
     this.roleFilterField.set(field);
     this.roleFilterValue.set(null);
@@ -217,9 +227,9 @@ export class RoleManagement implements OnInit {
     this.enterPermissionScreen(role);
   }
  
-  selectAvailableRole(value: string): void {
-    if (!value) return;
-    const role = this.activeRoles().find((r) => String(r.id) === value);
+  selectAvailableRole(roleId: number): void {
+    this.availableRoleMenuOpen.set(false);
+    const role = this.activeRoles().find((r) => r.id === roleId);
     if (role) {
       this.enterPermissionScreen(role);
     }
